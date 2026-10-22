@@ -1,0 +1,100 @@
+{
+  "General": {
+    "Enabled": true,
+    "AdminBuildOverride": false,
+    "DisplaySphereForAll": false,
+    "SphereDisplaySeconds": 10,
+    "RescanIntervalMinutes": 10,
+    "LogBlockedPlacements": false,
+    "ReadSupplyCrateVolumes": true
+  },
+
+  "Chat": {
+    "SenderName": "SERVER",
+    "MessageCooldownSeconds": 2,
+    "MessageCannotBuildCustom": "You can not build here.",
+    "AdminSuffix": " [{source}, {distance}/{range} foundations]",
+    "HelpCommand": "/nobuild",
+    "HelpInside": "You are inside a protected area around a {zone}: {distance} of {range} foundations from its center.",
+    "HelpNearest": "The nearest protected area is around a {zone}, {distance} foundations away (it reaches {range} foundations).",
+    "HelpNone": "There is no protected area on this map."
+  },
+
+  "Zones": {
+    "SpawnPoints": {
+      "Enabled": true,
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "PlayerStart" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a spawn point."
+    },
+    "BeaverSpawns": {
+      "Enabled": true,
+      "RangeInFoundations": 75,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "BeaverDam*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a beaver spawn point."
+    },
+    "MissionTerminals": {
+      "Enabled": true,
+      "RangeInFoundations": 20,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "MissionDispatcher*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a mission terminal."
+    },
+    "CityTerminals": {
+      "Enabled": true,
+      "RangeInFoundations": 20,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "*CityTerminal*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a city terminal."
+    },
+    "TributeTerminals": {
+      "Enabled": true,
+      "RangeInFoundations": 30,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "TributeTerminal*", "*Obelisk*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a tribute terminal."
+    },
+    "SupplyDrops": {
+      "Enabled": true,
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a supply drop."
+    },
+    "HordeDrops": {
+      "Enabled": true,
+      "RangeInFoundations": 20,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "*HordeCrate*SpawnPoint*", "*ElementNode*", "*ElementVein*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a orbital supply drop or element node."
+    },
+    "ExplorerNotes": {
+      "Enabled": true,
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "*ExplorerNote*", "*Glitch*", "*RuneStone*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a {note}.",
+      "NoteName": "explorer note"
+    }
+  },
+
+  "CustomLocations": [
+    {
+      "Name": "Someplace on the Island",
+      "Enabled": false,
+      "Location": [ 12222, 122222, 122222 ],
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ]
+    }
+  ]
+}

@@ -1,0 +1,210 @@
+// RestrictiveBuilding - commented configuration.
+//
+// This file holds the same settings and values as config.json, with an explanation on each one.
+// The plugin only reads config.json. Comments are allowed there too, so you can copy this file
+// over config.json if you prefer to keep the notes.
+//
+// After editing config.json, run RestrictiveBuilding.Reload (RCON, or the in-game console as an
+// admin) to apply it without a restart. A reload also rescans the map. If the file has a mistake,
+// the old settings stay active and the error is written to ArkApi.log.
+//
+// Distances are in foundations. One foundation is 300 Unreal units, the same in ASE and ASA. A zone
+// is a sphere of RangeInFoundations around its center, so height counts too.
+//
+// There are no bypass lists: nobody is exempt from a zone, apart from admins when
+// AdminBuildOverride is true. TribeIDs and Permissions from the old plugin's config are ignored
+// (the log says so if they are still there).
+{
+  "General": {
+    // false: the plugin loads but refuses nothing.
+    "Enabled": true,
+
+    // true: admins who are logged in with enablecheats can build inside every zone.
+    "AdminBuildOverride": false,
+
+    // When a placement is refused, the refusing zone's sphere is drawn for the player who tried.
+    // false: admins only. true: every player.
+    "DisplaySphereForAll": false,
+
+    // How long that sphere stays visible, in seconds. 0 turns the sphere off.
+    "SphereDisplaySeconds": 10,
+
+    // The map is scanned for protected actors 15 seconds after the server is ready, and again every
+    // this many minutes so actors in parts of the map that load later are picked up. Spots found by
+    // an earlier scan are kept. 0 scans only once (plus RestrictiveBuilding.Rescan and Reload).
+    "RescanIntervalMinutes": 10,
+
+    // true: every refused placement is written to ArkApi.log with the player, structure and zone.
+    "LogBlockedPlacements": false,
+
+    // true: supply drop points are read from the map's supply crate volumes (see SupplyDrops below).
+    // This reads a game field by name; if a game update ever renames it, the API stops the server
+    // when the first scan runs. Set this to false to get the server up again; only SupplyDrops
+    // ActorClasses are used then.
+    "ReadSupplyCrateVolumes": true
+  },
+
+  "Chat": {
+    // Sender name of every chat message from this plugin.
+    "SenderName": "SERVER",
+
+    // A player who keeps trying to place inside a zone gets at most one message per this many seconds.
+    "MessageCooldownSeconds": 2,
+
+    // Message for custom locations that have no "Message" of their own.
+    "MessageCannotBuildCustom": "You can not build here.",
+
+    // Added to the end of the message for admins, so they can tell which zone refused the placement.
+    // Placeholders (here and in every message below and in each zone's "Message"):
+    //   {zone}     what is protected: "spawn point", "tribute terminal", a custom location's name...
+    //   {note}     the explorer note name (ExplorerNotes "NoteName")
+    //   {source}   the class of the actor that created the zone, or the custom location's name
+    //   {distance} distance from the zone center, in foundations
+    //   {range}    the zone's range, in foundations
+    "AdminSuffix": " [{source}, {distance}/{range} foundations]",
+
+    // Chat command players can use to find out how close they are to a protected area. "" turns it off.
+    "HelpCommand": "/nobuild",
+    "HelpInside": "You are inside a protected area around a {zone}: {distance} of {range} foundations from its center.",
+    // In this message {distance} is the distance to the edge of the area.
+    "HelpNearest": "The nearest protected area is around a {zone}, {distance} foundations away (it reaches {range} foundations).",
+    "HelpNone": "There is no protected area on this map."
+  },
+
+  // The built-in zone types. Each one has:
+  //   Enabled            - false turns this type off.
+  //   RangeInFoundations - radius of the protected sphere around each spot.
+  //   Whitelist          - structures that may be placed inside anyway. An entry can be the item
+  //                        ("PrimalItemStructure_SleepingBag_Hide") or the structure class, written
+  //                        the same way as ActorClasses below.
+  //   ActorClasses       - which world actors create a spot of this type. Every map is scanned for
+  //                        them. An entry is one of:
+  //                          "PlayerStart"            a class name (the _C suffix is optional). It also
+  //                                                   matches every class that inherits from it.
+  //                          "*Obelisk*"              a wildcard on any class name in the inheritance
+  //                                                   chain. * is any run of characters, ? is one.
+  //                          "/Game/Mods/X/Thing.Thing" a blueprint path (any common spelling).
+  //                          "/Game/Mods/X/*"         a wildcard on the blueprint path.
+  //                          "/X/"                    a path ending in / matches any blueprint path
+  //                                                   containing it.
+  //                        Upper and lower case do not matter. Leaving the key out uses the built-in
+  //                        list shown here. Actors owned by a player or tribe never count, so a
+  //                        player's Tek Transmitter does not become a tribute terminal zone.
+  //   BPIgnore           - actors that match ActorClasses but must not create a spot, for example a
+  //                        mod structure whose name contains "Obelisk". Same format as ActorClasses.
+  //   Message            - chat text when a placement is refused. Placeholders as in Chat above.
+  //
+  // The ActorClasses lists are starting points. After the first start on each map, run
+  // RestrictiveBuilding.Report: it lists how many spots each type found and which classes they came
+  // from. If a type found nothing, stand next to one of those objects in game and run
+  // RestrictiveBuilding.Nearby to see its class names, then add the right one here.
+  "Zones": {
+    // Player respawn points (the spawn regions on the spawn screen).
+    "SpawnPoints": {
+      "Enabled": true,
+      "RangeInFoundations": 5,
+      "Whitelist": [
+        "PrimalItemStructure_SleepingBag_Hide",      // Hide Sleeping Bag
+        "PrimalItemStructure_SleepableSleepingbag"   // sleeping bag (mod)
+      ],
+      "ActorClasses": [ "PlayerStart" ],             // The engine's spawn point class and everything built on it
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a spawn point."
+    },
+
+    // Beaver dams (Castoroides). A spot found by a scan is kept until the server restarts, even if
+    // that dam is destroyed later.
+    "BeaverSpawns": {
+      "Enabled": true,
+      "RangeInFoundations": 75,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "BeaverDam*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a beaver spawn point."
+    },
+
+    // Genesis mission terminals.
+    "MissionTerminals": {
+      "Enabled": true,
+      "RangeInFoundations": 20,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "MissionDispatcher*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a mission terminal."
+    },
+
+    // City terminals (Extinction's Sanctuary terminals and similar).
+    "CityTerminals": {
+      "Enabled": true,
+      "RangeInFoundations": 20,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "*CityTerminal*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a city terminal."
+    },
+
+    // Obelisks and the other tribute terminals (boss arena terminals).
+    "TributeTerminals": {
+      "Enabled": true,
+      "RangeInFoundations": 30,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "TributeTerminal*", "*Obelisk*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a tribute terminal."
+    },
+
+    // Supply drop (beacon) spawn points. These are read from the map's supply crate volumes, so the
+    // list below is only for extra actor classes, such as a mod's own drop points.
+    "SupplyDrops": {
+      "Enabled": true,
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a supply drop."
+    },
+
+    // Extinction orbital supply drops (OSD) and element nodes/veins.
+    "HordeDrops": {
+      "Enabled": true,
+      "RangeInFoundations": 20,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "*HordeCrate*SpawnPoint*", "*ElementNode*", "*ElementVein*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a orbital supply drop or element node."
+    },
+
+    // Explorer notes, including Genesis glitches and Fjordur runes. {note} is replaced by NoteName.
+    "ExplorerNotes": {
+      "Enabled": true,
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
+      "ActorClasses": [ "*ExplorerNote*", "*Glitch*", "*RuneStone*" ],
+      "BPIgnore": [],
+      "Message": "You can not build here you are too close to a {note}.",
+
+      // What {note} says on this server: "glitch" on Genesis and Gen2, "rune" on Fjordur.
+      "NoteName": "explorer note"
+    }
+  },
+
+  // Your own protected spots on this server's map. Get a location from the ccc console command: its
+  // first three numbers are x, y and z. Each server has its own config.json, so list only the
+  // locations of the map that server runs.
+  //   Name               - shown in admin messages and as {zone}. Optional.
+  //   Enabled            - optional, default true.
+  //   Location           - [x, y, z]. Required.
+  //   RangeInFoundations - required.
+  //   Whitelist          - structures allowed inside. Optional.
+  //   Message            - optional; Chat.MessageCannotBuildCustom is used when left out.
+  "CustomLocations": [
+    {
+      // Example, switched off.
+      "Name": "Someplace on the Island",
+      "Enabled": false,
+      "Location": [ 12222, 122222, 122222 ],
+      "RangeInFoundations": 5,
+      "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ]
+    }
+  ]
+}
