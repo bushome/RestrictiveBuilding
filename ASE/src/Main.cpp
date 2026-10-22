@@ -58,8 +58,10 @@ namespace
 	const char* const kLevelActorsField = "ULevelBase.Actors";
 	const char* const kSupplySpawnPointsField = "ASupplyCrateSpawningVolume.LinkedSpawnPointEntries";
 
-	// IsAllowedToBuild returns 0 when a placement is allowed; anything else refuses it.
-	constexpr int kRefuseResult = 1;
+	// IsAllowedToBuild returns 1 when the game allows a placement (seen in placement traces on ASE and ASA).
+	// The plugin refuses by returning 0 instead.
+	constexpr int kAllowedResult = 1;
+	constexpr int kRefuseResult = 0;
 
 	// The first scan waits this long after the server reports itself ready, so late-loading levels are in.
 	constexpr int kFirstScanDelaySeconds = 15;
@@ -546,7 +548,7 @@ namespace
 		}
 
 		// Only placements the game itself allows are checked; a refusal from the game stands as it is.
-		if (result != 0)
+		if (result != kAllowedResult)
 			return result;
 
 		try

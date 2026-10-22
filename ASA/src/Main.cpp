@@ -50,7 +50,7 @@ namespace
 	const char* const kLevelActorsField = "ULevel.Actors2";
 	const char* const kSupplySpawnPointsField = "ASupplyCrateSpawningVolume.LinkedSpawnPointEntries";
 
-	// On ASA, IsAllowedToBuild returns 1 when the game allows a placement (seen in a placement trace).
+	// IsAllowedToBuild returns 1 when the game allows a placement (seen in placement traces on ASA and ASE).
 	// The plugin refuses by returning 0 instead.
 	constexpr int kAllowedResult = 1;
 	constexpr int kRefuseResult = 0;
