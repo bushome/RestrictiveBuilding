@@ -22,8 +22,7 @@ The ARK: Survival Ascended build lives in `..\ASA`.
    placement point is within `RangeInFoundations` of a spot (a sphere, so height counts), the placement is
    refused unless that zone's `Whitelist` covers the structure or the item it is built from.
 3. **Tell.** The player gets the zone's chat message (at most one per `MessageCooldownSeconds`). Admins also
-   get the zone's class and distance, and see the zone's sphere; with `DisplaySphereForAll` every player
-   sees it.
+   get the zone's class and distance.
 
 Ranges, whitelists and messages are read at check time, so a config reload changes them at once. A reload
 also rescans the map, because `ActorClasses` or `BPIgnore` may have changed.
@@ -107,8 +106,6 @@ explanation on every one; the plugin only reads `config.json`. Distances are in 
 |---|---|---|
 | `Enabled` | `true` | `false` refuses nothing. |
 | `AdminBuildOverride` | `false` | Admins logged in with enablecheats may build in every zone. |
-| `DisplaySphereForAll` | `false` | The refusing zone's sphere is drawn for admins only (`false`) or for every player (`true`). |
-| `SphereDisplaySeconds` | `10` | How long the sphere stays. `0` turns it off. |
 | `RescanIntervalMinutes` | `10` | Rescan interval. Spots from earlier scans are kept. `0` scans once. |
 | `LogBlockedPlacements` | `false` | Writes each refused placement to `ArkApi.log`. |
 | `ReadSupplyCrateVolumes` | `true` | Reads supply drop points from the supply crate volumes. See Troubleshooting. |
@@ -202,7 +199,7 @@ putting it on a server. `--shipped` also checks it against the shipped values.
 
 | File | Purpose |
 |---|---|
-| `src\Main.cpp` | Hook, map scan, supply volume reading, messages, spheres, commands. |
+| `src\Main.cpp` | Hook, map scan, supply volume reading, messages, commands. |
 | `src\ZoneLogic.h` | Config parsing, class matching, zones, messages. No game dependencies. Same file in `..\ASA`. |
 | `configs\config.json` | Default configuration, carried over from the plugin this replaces. |
 | `configs\config.commented.json` | The same configuration with every setting explained. Not read by the plugin. |

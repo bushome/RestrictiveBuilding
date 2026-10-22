@@ -359,7 +359,7 @@ namespace RestrictiveBuilding
 		case ZoneType::TributeTerminals: return { "TributeTerminal*", "*Obelisk*" };
 		case ZoneType::SupplyDrops:      return {};
 		case ZoneType::HordeDrops:       return { "*HordeCrate*SpawnPoint*", "*ElementNode*", "*ElementVein*" };
-		case ZoneType::ExplorerNotes:    return { "*ExplorerNote*", "*Glitch*", "*RuneStone*" };
+		case ZoneType::ExplorerNotes:    return { "ExplorerChest*", "NamedExplorerChest*", "PointOfInterestBP_MissionStart_Debugging" };
 		}
 		return {};
 	}
@@ -414,8 +414,6 @@ namespace RestrictiveBuilding
 	{
 		bool enabled = true;
 		bool allow_admins = false;
-		bool sphere_for_all = false;
-		double sphere_seconds = 10.0;
 		int rescan_minutes = 10;
 		bool log_blocked = false;
 		bool read_supply_volumes = true;
@@ -631,13 +629,11 @@ namespace RestrictiveBuilding
 		// --- General ---
 		const auto& general = ReadSection(root, "General", false, empty_object, "");
 		const std::string g = "General: ";
-		CheckKeys(general, { "Enabled", "AdminBuildOverride", "DisplaySphereForAll", "SphereDisplaySeconds",
+		CheckKeys(general, { "Enabled", "AdminBuildOverride",
 			"RescanIntervalMinutes", "LogBlockedPlacements", "ReadSupplyCrateVolumes" }, g, settings.warnings);
 
 		settings.enabled = ReadBool(general, "Enabled", settings.enabled, g);
 		settings.allow_admins = ReadBool(general, "AdminBuildOverride", settings.allow_admins, g);
-		settings.sphere_for_all = ReadBool(general, "DisplaySphereForAll", settings.sphere_for_all, g);
-		settings.sphere_seconds = ReadNumber(general, "SphereDisplaySeconds", settings.sphere_seconds, g);
 		settings.log_blocked = ReadBool(general, "LogBlockedPlacements", settings.log_blocked, g);
 		settings.read_supply_volumes = ReadBool(general, "ReadSupplyCrateVolumes", settings.read_supply_volumes, g);
 
@@ -646,8 +642,6 @@ namespace RestrictiveBuilding
 			throw std::runtime_error(g + "\"RescanIntervalMinutes\" must be a whole number, 0 or more");
 		settings.rescan_minutes = static_cast<int>(rescan);
 
-		if (settings.sphere_seconds < 0.0)
-			throw std::runtime_error(g + "\"SphereDisplaySeconds\" cannot be negative");
 
 		// --- Chat ---
 		const auto& chat = ReadSection(root, "Chat", false, empty_object, "");

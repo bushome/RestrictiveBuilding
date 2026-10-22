@@ -2,10 +2,8 @@
   "General": {
     "Enabled": true,
     "AdminBuildOverride": false,
-    "DisplaySphereForAll": false,
-    "SphereDisplaySeconds": 10,
     "RescanIntervalMinutes": 10,
-    "LogBlockedPlacements": false,
+    "LogBlockedPlacements": true,
     "ReadSupplyCrateVolumes": true
   },
 
@@ -81,7 +79,7 @@
       "Enabled": true,
       "RangeInFoundations": 5,
       "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
-      "ActorClasses": [ "*ExplorerNote*", "*Glitch*", "*RuneStone*" ],
+      "ActorClasses": [ "ExplorerChest*", "NamedExplorerChest*", "PointOfInterestBP_MissionStart_Debugging" ],
       "BPIgnore": [],
       "Message": "You can not build here you are too close to a {note}.",
       "NoteName": "explorer note"

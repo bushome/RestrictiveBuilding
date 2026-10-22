@@ -8,7 +8,7 @@
 //     the map's supply crate volumes. The scan repeats every RescanIntervalMinutes and keeps old spots.
 //   - APrimalStructure::IsAllowedToBuild is hooked. When the game would allow a placement and the
 //     placement point is inside a zone whose Whitelist does not cover the structure, the hook refuses it,
-//     tells the player in chat and (for admins, or everyone if configured) draws the zone's sphere.
+//     and tells the player in chat.
 //
 // Everything here runs on the game thread (the hook, AsaApi's one-second timer callback and the
 // commands), so the globals below need no locking.
@@ -50,8 +50,10 @@ namespace
 	const char* const kLevelActorsField = "ULevel.Actors2";
 	const char* const kSupplySpawnPointsField = "ASupplyCrateSpawningVolume.LinkedSpawnPointEntries";
 
-	// IsAllowedToBuild returns 0 when a placement is allowed; anything else refuses it.
-	constexpr int kRefuseResult = 1;
+	// On ASA, IsAllowedToBuild returns 1 when the game allows a placement (seen in a placement trace).
+	// The plugin refuses by returning 0 instead.
+	constexpr int kAllowedResult = 1;
+	constexpr int kRefuseResult = 0;
 
 	// The first scan waits this long after the server reports itself ready, so late-loading levels are in.
 	constexpr int kFirstScanDelaySeconds = 15;
@@ -150,8 +152,16 @@ namespace
 		entry.info.blueprint = AsaApi::IApiUtils::GetClassBlueprint(cls).ToString();
 		entry.zone_mask = ClassifyActorClass(g_settings, entry.info);
 
+		bool is_pawn = false;
 		for (const std::string& name : entry.info.class_chain)
+		{
 			entry.is_supply_volume = entry.is_supply_volume || name == "SupplyCrateSpawningVolume";
+			is_pawn = is_pawn || name == "Pawn";
+		}
+
+		// Creatures and characters never create zones, whatever their name matches (an "Obelisk" squid).
+		if (is_pawn)
+			entry.zone_mask = 0;
 
 		return g_class_cache.emplace(cls, std::move(entry)).first->second;
 	}
@@ -203,17 +213,6 @@ namespace
 			const std::wstring wide_line = AsaApi::Tools::Utf8Decode(line);
 			AsaApi::GetApiUtils().SendServerMessage(player, ok ? FColorList::Green : FColorList::Red, L"{}", wide_line.c_str());
 		}
-	}
-
-	void DrawSphere(AShooterPlayerController* player, const Vec3& center, double radius, double seconds)
-	{
-		if (player == nullptr || seconds <= 0.0 || radius <= 0.0)
-			return;
-
-		// A player controller only replicates to its own client, so only this player sees the sphere.
-		const FVector location = ToFVector(center);
-		FLinearColor color(1.0f, 0.0f, 0.0f, 1.0f); // pure red: stands out against ARK's greens and greys
-		player->MulticastDrawDebugSphere(&location, static_cast<float>(radius), 32, &color, static_cast<float>(seconds), true);
 	}
 
 	// ------------------------------------------------------------------------------------------
@@ -305,8 +304,12 @@ namespace
 					continue;
 
 				AActor* point = static_cast<AActor*>(const_cast<void*>(pointer));
+				const ClassEntry& point_entry = EntryFor(point->ClassField());
+				if (point_entry.is_supply_volume)
+					continue; // a volume listed as its own spawn point: its center is not a drop point
+
 				++g_stats.supply_points_read;
-				AddSpot(ZoneType::SupplyDrops, ToVec(point->GetLocation()), OwnClassName(EntryFor(point->ClassField()).info));
+				AddSpot(ZoneType::SupplyDrops, ToVec(point->GetLocation()), OwnClassName(point_entry.info));
 			}
 		}
 	}
@@ -467,9 +470,6 @@ namespace
 		{
 			last = now;
 			SendChat(player, BlockedMessage(g_settings, hit, admin));
-
-			if (admin || g_settings.sphere_for_all)
-				DrawSphere(player, hit.center, hit.radius, g_settings.sphere_seconds);
 		}
 
 		if (g_settings.log_blocked)
@@ -509,6 +509,7 @@ namespace
 		return true;
 	}
 
+
 	DECLARE_HOOK(APrimalStructure_IsAllowedToBuild, int, APrimalStructure*, APlayerController*, UE::Math::TVector<double>,
 		UE::Math::TRotator<double>, FPlacementData*, bool, UE::Math::TRotator<double>, bool, bool, APawn*);
 
@@ -519,8 +520,17 @@ namespace
 		const int result = APrimalStructure_IsAllowedToBuild_original(_this, PC, AtLocation, AtRotation, OutPlacementData,
 			bDontAdjustForMaxRange, PlayerViewRotation, bFinalPlacement, bUseOriginalOutPlacementData, BuildingPawnOverride);
 
+		// Placement trace while testing (LogBlockedPlacements): every call, with the game's own result.
+		if (g_settings.log_blocked)
+		{
+			const auto nearest = g_zones.FindNearestZone(g_settings, ToVec(AtLocation));
+			Log::GetLog()->info("Trace IsAllowedToBuild: {} result={} final={} player={} at ({:.0f}, {:.0f}, {:.0f}) nearest zone {} fdn",
+				_this != nullptr ? OwnClassName(EntryFor(_this->ClassField()).info) : std::string("?"), result, bFinalPlacement,
+				PC != nullptr, AtLocation.X, AtLocation.Y, AtLocation.Z, nearest ? FormatFoundations(nearest->distance) : std::string("-"));
+		}
+
 		// Only placements the game itself allows are checked; a refusal from the game stands as it is.
-		if (result != 0)
+		if (result != kAllowedResult)
 			return result;
 
 		try
@@ -587,10 +597,8 @@ namespace
 			// The classes that created the spots, most first.
 			std::vector<std::pair<std::string, int>> classes(g_stats.classes[i].begin(), g_stats.classes[i].end());
 			std::sort(classes.begin(), classes.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
-			for (size_t c = 0; c < classes.size() && c < 4; ++c)
+			for (size_t c = 0; c < classes.size(); ++c)
 				out << (c == 0 ? " - " : ", ") << classes[c].first << " x" << classes[c].second;
-			if (classes.size() > 4)
-				out << ", +" << (classes.size() - 4) << " more class(es)";
 
 			if (type == ZoneType::SupplyDrops)
 			{
@@ -720,8 +728,19 @@ namespace
 		ForEachWorldActor(world, [&](AActor* actor)
 			{
 				const double distance = Distance(ToVec(actor->GetLocation()), origin);
-				if (distance <= radius)
-					found.push_back(Found{ distance, actor });
+				if (distance > radius || actor->TargetingTeamField() >= kFirstPlayerTeam)
+					return; // players' own things are never zones
+
+				// Buffs and controllers ride along with characters, and plain meshes are scenery: never zones.
+				const ClassInfo& info = EntryFor(actor->ClassField()).info;
+				if (!info.class_chain.empty() && info.class_chain.front() == "StaticMeshActor")
+					return;
+				for (const std::string& name : info.class_chain)
+				{
+					if (name == "PrimalBuff" || name == "Controller")
+						return;
+				}
+				found.push_back(Found{ distance, actor });
 			});
 
 		std::sort(found.begin(), found.end(), [](const Found& a, const Found& b) { return a.distance < b.distance; });
@@ -736,13 +755,12 @@ namespace
 		{
 			const ClassEntry& info = EntryFor(entry.actor->ClassField());
 			const int team = entry.actor->TargetingTeamField();
-			const std::string zones = info.zone_mask != 0 ? (team < kFirstPlayerTeam ? ZoneMaskNames(info.zone_mask) : "player-owned") : "-";
+			const std::string zones = info.zone_mask != 0 ? ZoneMaskNames(info.zone_mask) : "-";
 
 			Log::GetLog()->info("  {} fdn: {} | team {} | zones {} | {}", FormatFoundations(entry.distance),
 				ShortChain(info.info, 8), team, zones, info.info.blueprint);
 
-			// Players do not need to see their own structures or creatures here.
-			if (shown < 15 && team < kFirstPlayerTeam)
+			if (shown < 15)
 			{
 				out << "\n" << FormatFoundations(entry.distance) << ": " << ShortChain(info.info) << " [" << zones << "]";
 				++shown;
@@ -823,9 +841,6 @@ namespace
 		const Vec3 position = ToVec(AsaApi::IApiUtils::GetPosition(player));
 		const std::optional<ZoneHit> nearest = g_zones.FindNearestZone(g_settings, position);
 		SendChat(player, HelpMessage(g_settings, nearest));
-
-		if (nearest && (player->bIsAdmin()() || g_settings.sphere_for_all))
-			DrawSphere(player, nearest->center, nearest->radius, g_settings.sphere_seconds);
 	}
 
 	// ------------------------------------------------------------------------------------------

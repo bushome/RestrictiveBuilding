@@ -157,7 +157,6 @@ static void TestParsing()
 	CHECK_THROWS(Parse(R"({ "General": { "Enabled": "yes" } })"));
 	CHECK_THROWS(Parse(R"({ "General": { "RescanIntervalMinutes": -1 } })"));
 	CHECK_THROWS(Parse(R"({ "General": { "RescanIntervalMinutes": 1.5 } })"));
-	CHECK_THROWS(Parse(R"({ "General": { "SphereDisplaySeconds": -1 } })"));
 	CHECK_THROWS(Parse(R"({ "Chat": { "HelpCommand": "/no build" } })"));
 	CHECK_THROWS(Parse(R"({ "Chat": { "MessageCooldownSeconds": -2 } })"));
 	CHECK_THROWS(Parse(R"({ "Zones": [] })"));
@@ -207,7 +206,18 @@ static void TestClassification()
 	// A beaver is not a beaver dam.
 	CHECK(ClassifyActorClass(s, Class({ "Beaver_Character_BP_C", "Dino_Character_BP_C" })) == 0);
 	CHECK(ClassifyActorClass(s, Class({ "MissionDispatcher_MultiUsePylon_C", "MissionDispatcher", "Actor" })) == bit(ZoneType::MissionTerminals));
-	CHECK(ClassifyActorClass(s, Class({ "ExplorerNote_Island_12_C", "Actor" })) == bit(ZoneType::ExplorerNotes));
+	// Class chains as seen on TheIsland_WP.
+	CHECK(ClassifyActorClass(s, Class({ "ExplorerChest_Rockwell_C", "ExplorerChest_Base_C", "Actor", "PrimalActor", "Object" }))
+		== bit(ZoneType::ExplorerNotes));
+	CHECK(ClassifyActorClass(s, Class({ "ExplorerChest_DearJane_C", "NamedExplorerChest_UnlockPersistentItem_Base_C", "Actor" }))
+		== bit(ZoneType::ExplorerNotes));
+	CHECK(ClassifyActorClass(s, Class({ "ExplorerChest_Glitch_C", "Actor" })) == bit(ZoneType::ExplorerNotes));
+	CHECK(ClassifyActorClass(s, Class({ "PointOfInterestBP_MissionStart_Debugging_C", "PointOfInterestBP_MissionStart_C",
+		"PointOfInterest_Base_BP_C", "PointOfInterestActor", "Actor" })) == bit(ZoneType::ExplorerNotes));
+	// Other Genesis mission start points are not glitches.
+	CHECK(ClassifyActorClass(s, Class({ "PointOfInterestBP_MissionStart_C", "PointOfInterest_Base_BP_C", "Actor" })) == 0);
+	CHECK(ClassifyActorClass(s, Class({ "BeaverDam_C", "StructureItemContainerBaseBP_C", "PrimalStructureItemContainer",
+		"PrimalStructure" })) == bit(ZoneType::BeaverSpawns));
 	CHECK(ClassifyActorClass(s, Class({ "StaticMeshActor", "Actor", "Object" })) == 0);
 }
 
@@ -397,7 +407,6 @@ static void TestConfigFile(const std::string& path, bool shipped_expectations)
 	CHECK(settings.warnings.empty());
 	CHECK(settings.enabled);
 	CHECK(!settings.allow_admins);
-	CHECK(!settings.sphere_for_all);
 	CHECK(settings.chat.sender == "SERVER");
 
 	// The ranges of the config this plugin replaced.

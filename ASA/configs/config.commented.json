@@ -22,13 +22,6 @@
     // true: admins who are logged in with enablecheats can build inside every zone.
     "AdminBuildOverride": false,
 
-    // When a placement is refused, the refusing zone's sphere is drawn for the player who tried.
-    // false: admins only. true: every player.
-    "DisplaySphereForAll": false,
-
-    // How long that sphere stays visible, in seconds. 0 turns the sphere off.
-    "SphereDisplaySeconds": 10,
-
     // The map is scanned for protected actors 15 seconds after the server is ready, and again every
     // this many minutes so actors in parts of the map that load later are picked up. Spots found by
     // an earlier scan are kept. 0 scans only once (plus RestrictiveBuilding.Rescan and Reload).
@@ -179,7 +172,10 @@
       "Enabled": true,
       "RangeInFoundations": 5,
       "Whitelist": [ "PrimalItemStructure_SleepingBag_Hide", "PrimalItemStructure_SleepableSleepingbag" ],
-      "ActorClasses": [ "*ExplorerNote*", "*Glitch*", "*RuneStone*" ],
+      // Seen on TheIsland_WP: ExplorerChest_Rockwell_C <- ExplorerChest_Base_C, ExplorerChest_Glitch_C,
+      // and the Dear Jane notes, ExplorerChest_DearJane_C <- NamedExplorerChest_UnlockPersistentItem_Base_C.
+      // Genesis 1 glitches are "fix the glitch" points: PointOfInterestBP_MissionStart_Debugging_C.
+      "ActorClasses": [ "ExplorerChest*", "NamedExplorerChest*", "PointOfInterestBP_MissionStart_Debugging" ],
       "BPIgnore": [],
       "Message": "You can not build here you are too close to a {note}.",
 
