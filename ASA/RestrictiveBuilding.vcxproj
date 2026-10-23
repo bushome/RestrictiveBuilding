@@ -80,7 +80,8 @@ copy /y "$(TargetDir)$(TargetFileName)" "$(TargetDir)RestrictiveBuilding\"
 copy /y "$(TargetDir)$(TargetName).pdb" "$(TargetDir)RestrictiveBuilding\"
 copy /y "$(ProjectDir)configs\PluginInfo.json" "$(TargetDir)RestrictiveBuilding\"
 copy /y "$(ProjectDir)configs\config.json" "$(TargetDir)RestrictiveBuilding\"
-copy /y "$(ProjectDir)configs\config.commented.json" "$(TargetDir)RestrictiveBuilding\"</Command>
+copy /y "$(ProjectDir)configs\config.commented.json" "$(TargetDir)RestrictiveBuilding\"
+copy /y "$(SolutionDir)..\THIRD-PARTY-NOTICES.md" "$(TargetDir)RestrictiveBuilding\"</Command>
       <Message>Assembling out\RestrictiveBuilding\ plugin folder</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>

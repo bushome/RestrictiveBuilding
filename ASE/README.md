@@ -43,7 +43,8 @@ repo (`extern\AseApi\out_lib\`), so there is nothing to build or copy first.
 No vcpkg packages are needed: ArkServerApi bundles the fmt copy its headers use.
 
 The result is `out\RestrictiveBuilding\`, containing `RestrictiveBuilding.dll`, its `.pdb`, `PluginInfo.json`,
-`config.json` and `config.commented.json`.
+`config.json`, `config.commented.json` and `THIRD-PARTY-NOTICES.md`. Keep the notice file(s) with the DLL
+when redistributing the plugin.
 
 Build against the ArkServerApi version your servers run. To move to a different release, check out that
 tag in the submodule and commit the new submodule pointer:

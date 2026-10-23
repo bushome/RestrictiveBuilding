@@ -46,7 +46,8 @@ git submodule update --init --recursive
 path.
 
 The result is `out\RestrictiveBuilding\`, containing `RestrictiveBuilding.dll`, its `.pdb`, `PluginInfo.json`,
-`config.json` and `config.commented.json`.
+`config.json`, `config.commented.json` and `THIRD-PARTY-NOTICES.md`. Keep the notice file(s) with the DLL
+when redistributing the plugin.
 
 Build against the AsaApi version your servers run. To move to a different AsaApi release, check out that
 tag in the submodule and commit the new submodule pointer:
