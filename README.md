@@ -1,5 +1,16 @@
-# RestrictiveBuilding
-
+```                                                                        
+                                                                        .-''''''-.
+ ___  ___  ___  _____  ___  ___   ___  _____  ___ __   __ ___        .-'          '-.
+| _ \| __|/ __||_   _|| _ \|_ _| / __||_   _||_ _|\ \ / /| __|     .' \\             '.
+|   /| _| \__ \  | |  |   / | | | (__   | |   | |  \ V / | _|     /     \\  /\         \
+|_|_\|___||___/  |_|  |_|_\|___| \___|  |_|  |___|  \_/  |___|   ;        \\  \         ;
+                                                                 |        / \\ \        |
+         ___  _   _  ___  _     ___   ___  _  _   ___            ;       /____\\\       ;
+        | _ )| | | ||_ _|| |   |   \ |_ _|| \| | / __|            \      |  []  \\     /
+        | _ \| |_| | | | | |__ | |) | | | | .` || (_ |             '.    |______| \\ .'
+        |___/ \___/ |___||____||___/ |___||_|\_| \___|               '-.          .-'
+                                                                        '-......-'
+```
 Server plugin that stops players from placing structures on top of the spots that matter: spawn points,
 beaver dams, mission/city/tribute terminals, supply drop points, orbital supply drops and element spots,
 explorer notes, and custom locations. The map is scanned for those actors automatically; each zone
