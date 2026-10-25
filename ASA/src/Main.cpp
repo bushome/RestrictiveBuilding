@@ -24,6 +24,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <cstdint>
 #include <unordered_set>
 #include <vector>
 
@@ -113,6 +114,86 @@ namespace
 	// A scan in progress. Matches keep their location and class name, not the actor, so an actor that
 	// goes away mid-scan (a destroyed beaver dam) leaves nothing stale behind. Spots found earlier stay in
 	// force until the scan finishes, so placements are never unprotected while it runs.
+	// Set of actor pointers seen by a scan, used to check that a supply volume's spawn point entries are
+	// real actors. One flat table sized from the previous scan: inserting never allocates per element and
+	// never rehashes mid-scan (which made one slice of the scan cost several ms), and releasing it at the
+	// end is a single free instead of one per actor.
+	class PointerSet
+	{
+	public:
+		void Reserve(size_t expected)
+		{
+			size_t capacity = 1024;
+			while (capacity < expected * 2)
+				capacity <<= 1;
+			slots_.assign(capacity, 0);
+			size_ = 0;
+		}
+
+		void Insert(const void* pointer)
+		{
+			const uintptr_t value = reinterpret_cast<uintptr_t>(pointer);
+			if (value == 0)
+				return;
+			if ((size_ + 1) * 2 > slots_.size())
+				Grow();
+			size_t index = Slot(value);
+			while (slots_[index] != 0)
+			{
+				if (slots_[index] == value)
+					return;
+				index = (index + 1) & (slots_.size() - 1);
+			}
+			slots_[index] = value;
+			++size_;
+		}
+
+		size_t count(const void* pointer) const
+		{
+			const uintptr_t value = reinterpret_cast<uintptr_t>(pointer);
+			if (value == 0 || slots_.empty())
+				return 0;
+			size_t index = Slot(value);
+			while (slots_[index] != 0)
+			{
+				if (slots_[index] == value)
+					return 1;
+				index = (index + 1) & (slots_.size() - 1);
+			}
+			return 0;
+		}
+
+		void Release()
+		{
+			std::vector<uintptr_t>().swap(slots_);
+			size_ = 0;
+		}
+
+	private:
+		size_t Slot(uintptr_t value) const
+		{
+			// Actors are 16-byte aligned; drop the low bits, then spread with a multiplicative hash.
+			return static_cast<size_t>(((value >> 4) * 0x9E3779B97F4A7C15ull) >> 20) & (slots_.size() - 1);
+		}
+
+		// Only when the map grew past twice the previous scan; a fresh table is built.
+		void Grow()
+		{
+			std::vector<uintptr_t> old;
+			old.swap(slots_);
+			slots_.assign((std::max)(old.size() * 2, static_cast<size_t>(1024)), 0);
+			size_ = 0;
+			for (uintptr_t value : old)
+			{
+				if (value != 0)
+					Insert(reinterpret_cast<const void*>(value));
+			}
+		}
+
+		std::vector<uintptr_t> slots_;
+		size_t size_ = 0;
+	};
+
 	struct PendingSpot
 	{
 		Vec3 location;
@@ -130,7 +211,7 @@ namespace
 		double busy_ms = 0.0;
 		double worst_tick_ms = 0.0;
 		size_t seen = 0;
-		std::unordered_set<const void*> known;
+		PointerSet known;
 		std::vector<AActor*> supply_volumes;
 		std::vector<PendingSpot> matches;
 	};
@@ -291,7 +372,7 @@ namespace
 			++g_stats.classes[static_cast<size_t>(type)][source];
 	}
 
-	void ReadSupplyDropPoints(const std::vector<AActor*>& volumes, const std::unordered_set<const void*>& known)
+	void ReadSupplyDropPoints(const std::vector<AActor*>& volumes, const PointerSet& known)
 	{
 		const auto is_known = [&known](const void* pointer) { return known.count(pointer) != 0; };
 
@@ -359,6 +440,8 @@ namespace
 		g_scan.running = true;
 		g_scan.rebuild = rebuild || was_rebuild;
 		g_scan.started = Clock::now();
+		// Room for a map 25% larger than the last one seen (or 256k actors on the first scan).
+		g_scan.known.Reserve(g_stats.actors_seen > 0 ? g_stats.actors_seen + g_stats.actors_seen / 4 : 262144);
 	}
 
 	void FinishScan()
@@ -410,7 +493,7 @@ namespace
 			Log::GetLog()->warn("Supply drop points could not be read from the {} supply crate volume(s); only SupplyDrops "
 				"ActorClasses are used", g_stats.supply_volumes);
 
-		g_scan.known.clear();
+		g_scan.known.Release();
 		g_scan.supply_volumes.clear();
 		g_scan.matches.clear();
 	}
@@ -448,7 +531,7 @@ namespace
 					continue;
 
 				++g_scan.seen;
-				g_scan.known.insert(actor);
+				g_scan.known.Insert(actor);
 
 				const ClassEntry& entry = EntryFor(actor->ClassField());
 				if (entry.is_supply_volume)
