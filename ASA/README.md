@@ -17,7 +17,9 @@ The ARK: Survival Evolved build lives in `..\ASE`.
    zone type's `ActorClasses`. A world-owned match becomes a protected spot. Supply drop points are read
    from the map's supply crate volumes. The scan repeats every `RescanIntervalMinutes` and keeps what earlier
    scans found. Actors owned by a player or tribe never count, so a player's Tek Transmitter does not turn
-   into a tribute terminal zone.
+   into a tribute terminal zone. A scan looks at 5,000 level actors per second, so a busy map takes under a
+   minute and no single server tick pays for the whole map; spots already found stay in force until it
+   finishes.
 2. **Check.** `APrimalStructure::IsAllowedToBuild` is hooked. When the game would allow a placement and the
    placement point is within `RangeInFoundations` of a spot (a sphere, so height counts), the placement is
    refused unless that zone's `Whitelist` covers the structure or the item it is built from.
@@ -71,7 +73,8 @@ the plugin was built with.
 2. Copy the `out\RestrictiveBuilding` folder to `ShooterGame\Binaries\Win64\ArkApi\Plugins\`. The folder and
    the DLL must keep the same name.
 3. Start the server. `ArkApi.log` shows `Config loaded: ...`, and about 15 seconds after the server is up,
-   `Scan 1 of map "...": ... Spots: SpawnPoints=..., ...`.
+   and once that first scan has worked through the map,
+   `Scan 1: ... actors in N s (... ms of work, worst tick ... ms). Spots: SpawnPoints=..., ...`.
 
 To update a running server, drop the new build in as `RestrictiveBuilding.dll.arkapi` (the build produces that
 copy too). If automatic plugin reloading is enabled in AsaApi's own `config.json`, AsaApi swaps it in.
@@ -158,8 +161,8 @@ All are admin console commands (`cheat RestrictiveBuilding.Report`); the ones ma
 
 | Command | RCON | What it does |
 |---|---|---|
-| `RestrictiveBuilding.Reload` | yes | Re-reads `config.json` and rescans. A broken file keeps the old settings and reports the error. |
-| `RestrictiveBuilding.Rescan` | yes | Forgets all spots and scans the map again. |
+| `RestrictiveBuilding.Reload` | yes | Re-reads `config.json` and starts a rescan. A broken file keeps the old settings and reports the error. |
+| `RestrictiveBuilding.Rescan` | yes | Starts a full rescan; when it finishes, its spots replace all earlier ones. |
 | `RestrictiveBuilding.Report` | yes | Spots per zone type and the classes that created them. |
 | `RestrictiveBuilding.Nearby [foundations]` | no | World actors around you (default 10 foundations) with their class chains, to find `ActorClasses` names. |
 | `RestrictiveBuilding.DestroyStuff [confirm]` | yes | Lists player structures already inside a zone (and not whitelisted there). With `confirm`, destroys them. Structures on platform saddles are skipped. |

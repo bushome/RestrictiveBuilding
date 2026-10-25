@@ -6,6 +6,7 @@
 //   - Shortly after the server is ready, every actor in the loaded levels is checked against each zone
 //     type's ActorClasses. World-owned matches become protected spots. Supply drop points are read from
 //     the map's supply crate volumes. The scan repeats every RescanIntervalMinutes and keeps old spots.
+//     It looks at a slice of the level actors per second, so no single server tick does the whole map.
 //   - APrimalStructure::IsAllowedToBuild is hooked. When the game would allow a placement and the
 //     placement point is inside a zone whose Whitelist does not cover the structure, the hook refuses it,
 //     and tells the player in chat.
@@ -58,6 +59,10 @@ namespace
 	// The first scan waits this long after the server reports itself ready, so late-loading levels are in.
 	constexpr int kFirstScanDelaySeconds = 15;
 
+	// Level actors a scan looks at per second. A busy map (200,000+ actors) takes under a minute, and no
+	// single tick pays for the whole map.
+	constexpr int kScanActorsPerTick = 5000;
+
 	using Clock = std::chrono::steady_clock;
 
 	// What the plugin knows about one UClass, worked out once per class.
@@ -84,7 +89,9 @@ namespace
 		size_t supply_points_read = 0;
 		size_t supply_stride = 0;     // element size found for the supply spawn point list (0: unknown)
 		bool supply_unreadable = false;
-		double last_scan_ms = 0.0;
+		double last_scan_ms = 0.0;      // time spent scanning, summed over the ticks
+		double last_scan_seconds = 0.0; // wall time from start to finish
+		double last_scan_worst_tick_ms = 0.0;
 		// Per zone type: class name -> spots it created (all scans since the last full rebuild).
 		std::array<std::map<std::string, int>, kZoneTypeCount> classes;
 	};
@@ -102,6 +109,32 @@ namespace
 	int g_ready_seconds = 0;     // seconds since the server reported ready
 	bool g_first_scan_done = false;
 	int g_seconds_since_scan = 0;
+
+	// A scan in progress. Matches keep their location and class name, not the actor, so an actor that
+	// goes away mid-scan (a destroyed beaver dam) leaves nothing stale behind. Spots found earlier stay in
+	// force until the scan finishes, so placements are never unprotected while it runs.
+	struct PendingSpot
+	{
+		Vec3 location;
+		std::string source;
+		unsigned mask = 0;
+	};
+
+	struct ScanJob
+	{
+		bool running = false;
+		bool rebuild = false;
+		size_t level = 0;
+		int32 actor = 0;
+		Clock::time_point started{};
+		double busy_ms = 0.0;
+		double worst_tick_ms = 0.0;
+		size_t seen = 0;
+		std::unordered_set<const void*> known;
+		std::vector<AActor*> supply_volumes;
+		std::vector<PendingSpot> matches;
+	};
+	ScanJob g_scan;
 
 	// ------------------------------------------------------------------------------------------
 	// Helpers
@@ -315,18 +348,24 @@ namespace
 	}
 
 	/**
-	 * \brief Scans the loaded levels. rebuild=true forgets every spot found so far first (used after a
-	 * config reload, because ActorClasses or BPIgnore may have changed).
+	 * \brief Starts a scan of the loaded levels; StepScan does the work a slice per second. rebuild=true
+	 * replaces every spot found so far when the scan finishes (used after a config reload, because
+	 * ActorClasses or BPIgnore may have changed). A scan already running starts over.
 	 */
-	void ScanWorld(bool rebuild)
+	void StartScan(bool rebuild)
 	{
-		UWorld* world = World();
-		if (world == nullptr)
-			return;
+		const bool was_rebuild = g_scan.running && g_scan.rebuild;
+		g_scan = ScanJob();
+		g_scan.running = true;
+		g_scan.rebuild = rebuild || was_rebuild;
+		g_scan.started = Clock::now();
+	}
 
-		const auto started = Clock::now();
+	void FinishScan()
+	{
+		g_scan.running = false;
 
-		if (rebuild)
+		if (g_scan.rebuild)
 		{
 			g_zones.Clear();
 			for (auto& classes : g_stats.classes)
@@ -335,43 +374,25 @@ namespace
 			g_stats.supply_unreadable = false;
 		}
 
-		std::unordered_set<const void*> known;
-		std::vector<AActor*> supply_volumes;
-		std::vector<std::pair<AActor*, unsigned>> matches;
-		size_t seen = 0;
-
-		ForEachWorldActor(world, [&](AActor* actor)
-			{
-				++seen;
-				known.insert(actor);
-
-				const ClassEntry& entry = EntryFor(actor->ClassField());
-				if (entry.is_supply_volume)
-					supply_volumes.push_back(actor);
-
-				// Player and tribe owned actors never create a zone (a Tek Transmitter is a tribute terminal).
-				if (entry.zone_mask != 0 && actor->TargetingTeamField() < kFirstPlayerTeam)
-					matches.emplace_back(actor, entry.zone_mask);
-			});
-
-		for (const auto& [actor, mask] : matches)
+		for (const PendingSpot& spot : g_scan.matches)
 		{
-			const Vec3 location = ToVec(actor->GetLocation());
-			const std::string& source = OwnClassName(EntryFor(actor->ClassField()).info);
 			for (size_t i = 0; i < kZoneTypeCount; ++i)
 			{
-				if (mask & (1u << i))
-					AddSpot(ZoneTypeAt(i), location, source);
+				if (spot.mask & (1u << i))
+					AddSpot(ZoneTypeAt(i), spot.location, spot.source);
 			}
 		}
 
-		g_stats.supply_volumes = supply_volumes.size();
+		// Supply crate volumes and their spawn points are part of the map and stay for its lifetime.
+		g_stats.supply_volumes = g_scan.supply_volumes.size();
 		if (g_settings.read_supply_volumes)
-			ReadSupplyDropPoints(supply_volumes, known);
+			ReadSupplyDropPoints(g_scan.supply_volumes, g_scan.known);
 
 		++g_stats.scans;
-		g_stats.actors_seen = seen;
-		g_stats.last_scan_ms = std::chrono::duration<double, std::milli>(Clock::now() - started).count();
+		g_stats.actors_seen = g_scan.seen;
+		g_stats.last_scan_ms = g_scan.busy_ms;
+		g_stats.last_scan_seconds = std::chrono::duration<double>(Clock::now() - g_scan.started).count();
+		g_stats.last_scan_worst_tick_ms = g_scan.worst_tick_ms;
 		g_seconds_since_scan = 0;
 
 		std::string counts;
@@ -381,12 +402,75 @@ namespace
 			counts += std::string(ZoneTypeKey(ZoneTypeAt(i))) + "=" + std::to_string(g_zones.Count(ZoneTypeAt(i)));
 		}
 
-		Log::GetLog()->info("Scan {}: {} actors in {:.0f} ms. Spots: {}", g_stats.scans, seen,
-			g_stats.last_scan_ms, counts);
+		Log::GetLog()->info("Scan {}: {} actors in {:.0f} s ({:.0f} ms of work, worst tick {:.1f} ms). Spots: {}",
+			g_stats.scans, g_scan.seen, g_stats.last_scan_seconds, g_stats.last_scan_ms, g_stats.last_scan_worst_tick_ms,
+			counts);
 
 		if (g_stats.supply_unreadable)
 			Log::GetLog()->warn("Supply drop points could not be read from the {} supply crate volume(s); only SupplyDrops "
 				"ActorClasses are used", g_stats.supply_volumes);
+
+		g_scan.known.clear();
+		g_scan.supply_volumes.clear();
+		g_scan.matches.clear();
+	}
+
+	// One slice of the scan: up to kScanActorsPerTick level actors.
+	void StepScan()
+	{
+		UWorld* world = World();
+		if (world == nullptr)
+			return;
+
+		const auto tick_start = Clock::now();
+		int budget = kScanActorsPerTick;
+		auto& levels = world->LevelsField();
+
+		while (budget > 0)
+		{
+			if (g_scan.level >= static_cast<size_t>(levels.Num()))
+				break;
+
+			ULevel* level = levels[static_cast<int32>(g_scan.level)].Get();
+			if (level == nullptr)
+			{
+				++g_scan.level;
+				g_scan.actor = 0;
+				continue;
+			}
+
+			TArray<AActor*>& actors = *GetNativePointerField<TArray<AActor*>*>(level, kLevelActorsField);
+			while (budget > 0 && g_scan.actor < actors.Num())
+			{
+				AActor* actor = actors[g_scan.actor++];
+				--budget;
+				if (actor == nullptr)
+					continue;
+
+				++g_scan.seen;
+				g_scan.known.insert(actor);
+
+				const ClassEntry& entry = EntryFor(actor->ClassField());
+				if (entry.is_supply_volume)
+					g_scan.supply_volumes.push_back(actor);
+
+				// Player and tribe owned actors never create a zone (a Tek Transmitter is a tribute terminal).
+				if (entry.zone_mask != 0 && actor->TargetingTeamField() < kFirstPlayerTeam)
+					g_scan.matches.push_back({ ToVec(actor->GetLocation()), OwnClassName(entry.info), entry.zone_mask });
+			}
+			if (g_scan.actor >= actors.Num())
+			{
+				++g_scan.level;
+				g_scan.actor = 0;
+			}
+		}
+
+		const double ms = std::chrono::duration<double, std::milli>(Clock::now() - tick_start).count();
+		g_scan.busy_ms += ms;
+		g_scan.worst_tick_ms = (std::max)(g_scan.worst_tick_ms, ms);
+
+		if (g_scan.level >= static_cast<size_t>(levels.Num()))
+			FinishScan();
 	}
 
 	// ------------------------------------------------------------------------------------------
@@ -585,7 +669,9 @@ namespace
 		std::ostringstream out;
 		out << "RestrictiveBuilding (" << (g_settings.enabled ? "enabled" : "DISABLED") << "): "
 			<< g_stats.scans << " scan(s), last " << g_stats.actors_seen << " actors in "
-			<< static_cast<int>(g_stats.last_scan_ms) << " ms\n";
+			<< static_cast<int>(g_stats.last_scan_seconds) << " s (" << static_cast<int>(g_stats.last_scan_ms)
+			<< " ms of work, worst tick " << static_cast<int>(g_stats.last_scan_worst_tick_ms) << " ms)"
+			<< (g_scan.running ? "; a scan is running now" : "") << "\n";
 
 		for (size_t i = 0; i < kZoneTypeCount; ++i)
 		{
@@ -631,16 +717,18 @@ namespace
 			return "RestrictiveBuilding: reload failed - " + error;
 		}
 
-		ScanWorld(true);
+		StartScan(true);
 		g_first_scan_done = true;
-		return "RestrictiveBuilding: config reloaded and map rescanned (" + std::to_string(g_zones.Total()) + " spots)";
+		return "RestrictiveBuilding: config reloaded; rescan started (" + std::to_string(g_zones.Total()) +
+			" spots stay in force until it finishes, under a minute)";
 	}
 
 	std::string RescanCommandText()
 	{
-		ScanWorld(true);
+		StartScan(true);
 		g_first_scan_done = true;
-		return "RestrictiveBuilding: map rescanned (" + std::to_string(g_zones.Total()) + " spots)";
+		return "RestrictiveBuilding: rescan started (" + std::to_string(g_zones.Total()) +
+			" spots stay in force until it finishes, under a minute)";
 	}
 
 	std::string DestroyStuffText(bool confirm)
@@ -859,13 +947,16 @@ namespace
 			if (g_ready_seconds >= kFirstScanDelaySeconds)
 			{
 				g_first_scan_done = true;
-				ScanWorld(true);
+				StartScan(true);
 			}
 		}
-		else if (g_settings.rescan_minutes > 0 && ++g_seconds_since_scan >= g_settings.rescan_minutes * 60)
+		else if (!g_scan.running && g_settings.rescan_minutes > 0 && ++g_seconds_since_scan >= g_settings.rescan_minutes * 60)
 		{
-			ScanWorld(false);
+			StartScan(false);
 		}
+
+		if (g_scan.running)
+			StepScan();
 
 		// Forget message cooldowns once a minute.
 		if (g_ready_seconds % 60 == 0)
