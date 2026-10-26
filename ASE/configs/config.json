@@ -4,6 +4,7 @@
     "AdminBuildOverride": false,
     "RescanIntervalMinutes": 10,
     "LogBlockedPlacements": true,
+    "LogScans": true,
     "ReadSupplyCrateVolumes": true
   },
 

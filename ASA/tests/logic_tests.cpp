@@ -135,6 +135,8 @@ static void TestParsing()
 	CHECK(s.warnings.empty());
 	CHECK(s.explorer_note_name == "rune");
 	CHECK(Parse("{}").explorer_note_name == "explorer note");
+	CHECK(Parse("{}").log_scans);
+	CHECK(!Parse(R"({ "General": { "LogScans": false } })").log_scans);
 
 	// Bypass-list keys (TribeIDs, Permissions) are accepted but reported.
 	const Settings bypass = Parse(R"({ "Zones": { "SpawnPoints": { "TribeIDs": [ 1 ], "Permissions": [ "VIP1" ] } },

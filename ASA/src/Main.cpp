@@ -394,9 +394,9 @@ namespace
 				g_stats.supply_stride = DetectLeadingPointerStride(longest->num,
 					[data](size_t offset, const void*& out) { return ReadPointerGuarded(data, offset, &out); }, is_known);
 
-				if (g_stats.supply_stride != 0)
+				if (g_stats.supply_stride != 0 && g_settings.log_scans)
 					Log::GetLog()->info("Supply drop points: spawn point entries are {} bytes", g_stats.supply_stride);
-				else
+				else if (g_stats.supply_stride == 0)
 					g_stats.supply_unreadable = true;
 			}
 		}
@@ -485,9 +485,10 @@ namespace
 			counts += std::string(ZoneTypeKey(ZoneTypeAt(i))) + "=" + std::to_string(g_zones.Count(ZoneTypeAt(i)));
 		}
 
-		Log::GetLog()->info("Scan {}: {} actors in {:.0f} s ({:.0f} ms of work, worst tick {:.1f} ms). Spots: {}",
-			g_stats.scans, g_scan.seen, g_stats.last_scan_seconds, g_stats.last_scan_ms, g_stats.last_scan_worst_tick_ms,
-			counts);
+		if (g_settings.log_scans)
+			Log::GetLog()->info("Scan {}: {} actors in {:.0f} s ({:.0f} ms of work, worst tick {:.1f} ms). Spots: {}",
+				g_stats.scans, g_scan.seen, g_stats.last_scan_seconds, g_stats.last_scan_ms, g_stats.last_scan_worst_tick_ms,
+				counts);
 
 		if (g_stats.supply_unreadable)
 			Log::GetLog()->warn("Supply drop points could not be read from the {} supply crate volume(s); only SupplyDrops "

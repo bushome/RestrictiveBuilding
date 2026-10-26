@@ -416,6 +416,7 @@ namespace RestrictiveBuilding
 		bool allow_admins = false;
 		int rescan_minutes = 10;
 		bool log_blocked = false;
+		bool log_scans = true;
 		bool read_supply_volumes = true;
 
 		ChatSettings chat;
@@ -630,11 +631,12 @@ namespace RestrictiveBuilding
 		const auto& general = ReadSection(root, "General", false, empty_object, "");
 		const std::string g = "General: ";
 		CheckKeys(general, { "Enabled", "AdminBuildOverride",
-			"RescanIntervalMinutes", "LogBlockedPlacements", "ReadSupplyCrateVolumes" }, g, settings.warnings);
+			"RescanIntervalMinutes", "LogBlockedPlacements", "LogScans", "ReadSupplyCrateVolumes" }, g, settings.warnings);
 
 		settings.enabled = ReadBool(general, "Enabled", settings.enabled, g);
 		settings.allow_admins = ReadBool(general, "AdminBuildOverride", settings.allow_admins, g);
 		settings.log_blocked = ReadBool(general, "LogBlockedPlacements", settings.log_blocked, g);
+		settings.log_scans = ReadBool(general, "LogScans", settings.log_scans, g);
 		settings.read_supply_volumes = ReadBool(general, "ReadSupplyCrateVolumes", settings.read_supply_volumes, g);
 
 		const double rescan = ReadNumber(general, "RescanIntervalMinutes", settings.rescan_minutes, g);

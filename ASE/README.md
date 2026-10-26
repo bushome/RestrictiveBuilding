@@ -112,6 +112,7 @@ explanation on every one; the plugin only reads `config.json`. Distances are in 
 | `AdminBuildOverride` | `false` | Admins logged in with enablecheats may build in every zone. |
 | `RescanIntervalMinutes` | `10` | Rescan interval. Spots from earlier scans are kept. `0` scans once. |
 | `LogBlockedPlacements` | `false` | Writes each refused placement to `ArkApi.log`. |
+| `LogScans` | `true` | Writes a one-line summary of each map scan to `ArkApi.log`. `false` keeps scans silent; warnings and errors are always logged. |
 | `ReadSupplyCrateVolumes` | `true` | Reads supply drop points from the supply crate volumes. See Troubleshooting. |
 
 ### Chat

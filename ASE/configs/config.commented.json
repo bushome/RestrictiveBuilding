@@ -30,6 +30,10 @@
     // true: every refused placement is written to ArkApi.log with the player, structure and zone.
     "LogBlockedPlacements": false,
 
+    // true: each map scan writes a one-line summary to ArkApi.log (actors scanned, time taken, spots
+    // found per zone type). false: scans run silently. Warnings and errors are always logged.
+    "LogScans": true,
+
     // true: supply drop points are read from the map's supply crate volumes (see SupplyDrops below).
     // This reads a game field by name; if a game update ever renames it, the API stops the server
     // when the first scan runs. Set this to false to get the server up again; only SupplyDrops
