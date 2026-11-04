@@ -1,0 +1,7 @@
+{
+  "FullName": "Restrictive Building",
+  "Description": "Stops structures being placed near spawn points, terminals, supply drops, explorer notes and custom locations",
+  "Version": 1.0,
+  "MinApiVersion": 3.56,
+  "Dependencies": []
+}
