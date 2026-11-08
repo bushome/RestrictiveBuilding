@@ -27,6 +27,11 @@
     <ProjectName>RestrictiveBuilding</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <!-- AseApi location: a shared checkout when AseApiDir is set (e.g. by a Directory.Build.props above the repo), otherwise the extern\AseApi submodule. -->
+  <PropertyGroup>
+    <AseApiDir Condition="'$(AseApiDir)' == ''">$(SolutionDir)extern\AseApi\</AseApiDir>
+    <AseApiDir>$([MSBuild]::EnsureTrailingSlash('$(AseApiDir)'))</AseApiDir>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -52,11 +57,11 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>PROJECT_NAME="$(ProjectName)";NDEBUG;_WINDOWS;_USRDLL;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>PROJECT_NAME="$(ProjectName)";NDEBUG;_WINDOWS;_USRDLL;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS;_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(SolutionDir)extern\AseApi\version\Core\Public\;$(ProjectDir)src\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(AseApiDir)version\Core\Public\;$(ProjectDir)src\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -64,7 +69,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)extern\AseApi\out_lib\ArkApi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(AseApiDir)out_lib\ArkApi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>if exist "$(TargetDir)$(TargetFileName).ArkApi" del /q "$(TargetDir)$(TargetFileName).ArkApi"</Command>
@@ -84,7 +89,7 @@ copy /y "$(SolutionDir)..\THIRD-PARTY-NOTICES.md" "$(TargetDir)RestrictiveBuildi
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <!-- Fail early with a readable message if the AseApi submodule is missing. -->
   <Target Name="CheckAseApi" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(SolutionDir)extern\AseApi\version\Core\Public\API\ARK\Ark.h')" Text="AseApi headers not found. Run: git submodule update --init --recursive" />
-    <Error Condition="!Exists('$(SolutionDir)extern\AseApi\out_lib\ArkApi.lib')" Text="ArkApi.lib not found in extern\AseApi\out_lib. It ships in the AseApi repo; run: git submodule update --init --recursive" />
+    <Error Condition="!Exists('$(AseApiDir)version\Core\Public\API\ARK\Ark.h')" Text="AseApi headers not found in $(AseApiDir). Run: git submodule update --init --recursive, or point AseApiDir at a shared AseApi checkout" />
+    <Error Condition="!Exists('$(AseApiDir)out_lib\ArkApi.lib')" Text="ArkApi.lib not found in $(AseApiDir)out_lib. It ships in the AseApi repo; run: git submodule update --init --recursive, or point AseApiDir at a shared AseApi checkout" />
   </Target>
 </Project>

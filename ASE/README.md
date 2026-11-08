@@ -31,6 +31,8 @@ also rescans the map, because `ActorClasses` or `BPIgnore` may have changed.
 
 ## Build
 
+**Shared API checkout (optional):** the project builds against `extern\AseApi` by default. To build several plugins against one shared AseApi checkout instead, set the MSBuild property `AseApiDir` to that folder, for example in a `Directory.Build.props` placed above the repo; the submodule then doesn't need to be checked out.
+
 Requirements: Visual Studio 2026 with the "Desktop development with C++" workload (v145 toolset), and Git.
 
 ArkServerApi is a git submodule at `extern\AseApi`. After cloning the repository:
@@ -67,6 +69,8 @@ git add extern\AseApi
 - `src\ZoneLogic.h`, the tests and the configs are the same as the ASA build; keep them in sync.
 
 ## Install
+
+**VC++ runtime:** built with the v145 toolset (Visual Studio 2026) and `_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR`, so it also runs on servers with an older Visual C++ runtime. If the server crashes inside `std::mutex` or reports a missing `msvcp140.dll` entry point after installing, install the current Visual C++ Redistributable (x64).
 
 The server machine needs a Microsoft Visual C++ x64 Redistributable at least as new as the Visual Studio
 the plugin was built with.
